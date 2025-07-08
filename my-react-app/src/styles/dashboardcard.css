@@ -1,0 +1,232 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: #ffffff;
+}
+
+.dashboard-container {
+  min-height: 100vh;
+  margin-left: 200px;
+  width: 114.4%;
+  background-color: #ffffff;
+  padding: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+  max-width: 1200px;
+  width: 100%;
+}
+
+.metric-card {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 2rem;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.icon-container {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.icon {
+  width: 48px;
+  height: 48px;
+  fill: currentColor;
+}
+
+/* Specific backgrounds and colors */
+.user-bg {
+  background-color: #fff5d9;
+}
+
+.user-icon {
+  color: #f59e0b;
+}
+
+.backup-bg {
+  background-color: #ffe0eb;
+}
+
+.backup-icon {
+  color: #ec4899;
+}
+
+.role-bg {
+  background-color: #e7edff;
+}
+
+.role-icon {
+  color: #6366f1;
+}
+
+.recovery-bg {
+  background-color: #dcfaf8;
+}
+
+.recovery-icon {
+  color: #10b981;
+}
+
+.metric-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.metric-title {
+  font-size: 1.75rem;
+  font-weight: 400;
+  color: #718ebf;
+  margin: 0;
+}
+
+.metric-value {
+  font-size: 3.5rem;
+  font-weight: 700;
+  color: #232323;
+  margin: 0;
+  line-height: 1;
+}
+
+/* Responsive styles */
+@media (max-width: 1024px) {
+  .metrics-grid {
+    gap: 0.5rem;
+  }
+  .metric-card {
+    padding: 0.5rem;
+    margin: 0.5rem;
+    width: 80%;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  .icon-container {
+    width: 100px;
+    height: 100px;
+  }
+
+  .icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .metric-title {
+    font-size: 1.5rem;
+  }
+
+  .metric-value {
+    font-size: 3rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 1.5rem;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+    max-width: 500px;
+  }
+
+  .metric-card {
+    padding: 1.5rem;
+    gap: 1.5rem;
+  }
+
+  .icon-container {
+    width: 100px;
+    height: 100px;
+  }
+
+  .icon {
+    font-size: 2rem;
+  }
+
+  .metric-title {
+    font-size: 1.25rem;
+  }
+
+  .metric-value {
+    font-size: 2.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-container {
+    padding: 1rem;
+  }
+
+  .metric-card {
+    padding: 1rem;
+    gap: 1rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .icon-container {
+    width: 80px;
+    height: 80px;
+  }
+
+  .icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .metric-title {
+    font-size: 1.125rem;
+  }
+
+  .metric-value {
+    font-size: 2rem;
+  }
+}
+
+/* Large desktop styles */
+@media (min-width: 1200px) {
+  .metrics-grid {
+    max-width: 1000px;
+    gap: 4rem;
+  }
+
+  .icon-container {
+    width: 140px;
+    height: 140px;
+  }
+
+  .icon {
+    font-size: 3rem;
+  }
+
+  .metric-title {
+    font-size: 1.75rem;
+  }
+
+  .metric-value {
+    font-size: 3.5rem;
+  }
+}
