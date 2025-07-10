@@ -1,12 +1,10 @@
 import { Client } from 'pg';
-import dotenv from 'dotenv';
 
-const env = dotenv.config();
 export const client = new Client({
-    host: env.parsed.DB_HOST,
-    user: env.parsed.DB_USER,
-    port: env.parsed.DB_PORT,
-    password: env.parsed.DB_PASSWORD,
-    database: env.parsed.DB_NAME,
+    host: 'centerbeam.proxy.rlwy.net',
+    port: '43047',
+    user: 'postgres',
+    password: 'maViAbEfuXfjxAOcgxGTRWnsmZCxCdan',
+    database: 'blood_donation_system',
 });
 

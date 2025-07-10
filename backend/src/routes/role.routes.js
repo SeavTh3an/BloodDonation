@@ -8,6 +8,11 @@ import {
   grantPermissionsToRoleCon,
   revokePermissionsFromRoleCon,
   revokeRoleFromUserCon,
+  getUserRolesCon,
+  getRolePermissionsCon,
+  testRolesCon,
+  getUsersWithRoleCon,
+  revokeRoleFromAllUsersCon,
 } from "../controller/roleController.js"
 
 export const roleRouter = Router()
@@ -19,4 +24,9 @@ roleRouter.post("/roles/assign", assignRoleToUserCon)
 roleRouter.post("/roles/permissions/grant", grantPermissionsToRoleCon)
 roleRouter.post("/roles/permissions/revoke", revokePermissionsFromRoleCon)
 roleRouter.post("/roles/revoke", revokeRoleFromUserCon)
+roleRouter.get("/roles/user/:userName", getUserRolesCon)
+roleRouter.get("/roles/:roleName/permissions", getRolePermissionsCon)
+roleRouter.get("/roles/test", testRolesCon)
+roleRouter.get("/roles/:roleName/users", getUsersWithRoleCon)
+roleRouter.post("/roles/:roleName/revoke-all", revokeRoleFromAllUsersCon)
 

@@ -1,75 +1,90 @@
+import { useState, useEffect } from "react"
+import { userApi } from "../api/userApi.js"
 import "../styles/member_status.css"
 import { useNavigate } from "react-router-dom"
 
 const MemberManagement = () => {
   const navigate = useNavigate()
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
 
-  const members = [
-    {
-      name: "Jane Cooper",
-      hospital: "Microsoft",
-      phone: "(225) 555-0118",
-      email: "jane@microsoft.com",
-      country: "United States",
-      status: "Active",
-    },
-    {
-      name: "Floyd Miles",
-      hospital: "Yahoo",
-      phone: "(205) 555-0100",
-      email: "floyd@yahoo.com",
-      country: "Kiribati",
-      status: "Inactive",
-    },
-    {
-      name: "Ronald Richards",
-      hospital: "Adobe",
-      phone: "(302) 555-0107",
-      email: "ronald@adobe.com",
-      country: "Israel",
-      status: "Inactive",
-    },
-    {
-      name: "Marvin McKinney",
-      hospital: "Tesla",
-      phone: "(252) 555-0126",
-      email: "marvin@tesla.com",
-      country: "Iran",
-      status: "Active",
-    },
-    {
-      name: "Jerome Bell",
-      hospital: "Google",
-      phone: "(629) 555-0129",
-      email: "jerome@google.com",
-      country: "Réunion",
-      status: "Active",
-    },
-    {
-      name: "Kathryn Murphy",
-      hospital: "Microsoft",
-      phone: "(406) 555-0120",
-      email: "kathryn@microsoft.com",
-      country: "Curaçao",
-      status: "Active",
-    },
-    {
-      name: "Jacob Jones",
-      hospital: "Yahoo",
-      phone: "(208) 555-0112",
-      email: "jacob@yahoo.com",
-      country: "Brazil",
-      status: "Active",
-    },
-    {
-      name: "Kristin Watson",
-      hospital: "Facebook",
-      phone: "(704) 555-0127",
-      email: "kristin@facebook.com",
-      country: "Åland Islands",
-      status: "Inactive",
-    },
-  ]
+  // Load users from backend on component mount
+  useEffect(() => {
+    loadUsers()
+  }, [])
+
+  const loadUsers = async () => {
+    try {
+      setLoading(true)
+      setError("")
+      const usersData = await userApi.getAllUsers()
+      
+      // Transform database users to match the expected format
+      const transformedUsers = usersData.map(user => ({
+        name: user.usename || user.username || 'Unknown',
+        email: `${user.usename || user.username}@blooddonation.com`, // Generate email from username
+        status: 'Active', // Default status since backend doesn't have status field
+        username: user.usename || user.username
+      }))
+      
+      setUsers(transformedUsers)
+    } catch (error) {
+      console.error('Error loading users:', error)
+      setError('Failed to load users')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteUser = async (username) => {
+    if (window.confirm(`Are you sure you want to delete the user "${username}"?`)) {
+      try {
+        setLoading(true)
+        setError("")
+        
+        await userApi.deleteUser(username)
+        
+        // Reload users to get the updated list
+        await loadUsers()
+        
+        alert(`User "${username}" deleted successfully!`)
+      } catch (error) {
+        console.error('Error deleting user:', error)
+        setError('Failed to delete user. Please try again.')
+        alert('Failed to delete user. Please try again.')
+      } finally {
+        setLoading(false)
+      }
+    }
+  }
+
+  const toggleStatus = async (username) => {
+    try {
+      setLoading(true)
+      setError("")
+      
+      const userToToggle = users.find(user => user.username === username)
+      if (userToToggle) {
+        const newStatus = userToToggle.status === 'Active' ? 'Inactive' : 'Active'
+        
+        // Update user status in database
+        await userApi.updateUserStatus(username, newStatus)
+        
+        // Update local state
+        setUsers(users.map(user => 
+          user.username === username 
+            ? { ...user, status: newStatus }
+            : user
+        ))
+      }
+    } catch (error) {
+      console.error('Error toggling user status:', error)
+      setError(`Failed to update user status: ${error.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="member-management">
@@ -94,48 +109,83 @@ const MemberManagement = () => {
         </div>
       </div>
 
+      {error && <div className="error-message" style={{ color: 'red', marginBottom: '10px', textAlign: 'center' }}>{error}</div>}
+
       <div className="table-container">
         <table className="members-table">
           <thead>
             <tr>
               <th>Member</th>
-              <th>Hospital</th>
-              <th>Phone Number</th>
               <th>Email</th>
-              <th>Country</th>
               <th>Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {members.map((member, index) => (
-              <tr key={index}>
-                <td className="member-name">{member.name}</td>
-                <td>{member.hospital}</td>
-                <td>{member.phone}</td>
-                <td>{member.email}</td>
-                <td>{member.country}</td>
-                <td>
-                  <span className={`status-badge ${member.status.toLowerCase()}`}>
-                    {member.status}
-                  </span>
-                </td>
+            {loading && users.length === 0 ? (
+              <tr>
+                <td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>Loading users...</td>
               </tr>
-            ))}
+            ) : users.length === 0 ? (
+              <tr>
+                <td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>No users found</td>
+              </tr>
+            ) : (
+              users.map((user, index) => (
+                <tr key={index}>
+                  <td className="member-name">{user.name}</td>
+                  <td>{user.email}</td>
+                  <td>
+                    <button 
+                      className={`status-badge ${user.status.toLowerCase()}`}
+                      onClick={() => toggleStatus(user.username)}
+                      disabled={loading}
+                      style={{
+                        background: user.status === 'Active' ? '#10b981' : '#ef4444',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '12px',
+                        padding: '4px 12px',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        fontWeight: '500'
+                      }}
+                      title={`Click to toggle status (currently ${user.status})`}
+                    >
+                      {user.status}
+                    </button>
+                  </td>
+                  <td>
+                    <button 
+                      className="delete-btn" 
+                      onClick={() => handleDeleteUser(user.username)}
+                      title={`Delete ${user.name}`}
+                      disabled={loading}
+                      style={{
+                        background: 'red',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        padding: '4px 8px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
       <div className="pagination">
-        <div className="pagination-info">Showing data 1 to 8 of 256K entries</div>
+        <div className="pagination-info">Showing data 1 to {users.length} of {users.length} entries</div>
         <div className="pagination-controls">
-          <button className="pagination-arrow">‹</button>
+          <button className="pagination-arrow" disabled={loading}>‹</button>
           <button className="pagination-number active">1</button>
-          <button className="pagination-number">2</button>
-          <button className="pagination-number">3</button>
-          <button className="pagination-number">4</button>
-          <span className="pagination-dots">...</span>
-          <button className="pagination-number">40</button>
-          <button className="pagination-arrow">›</button>
+          <button className="pagination-arrow" disabled={loading}>›</button>
         </div>
       </div>
     </div>

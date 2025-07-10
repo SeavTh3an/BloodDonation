@@ -1,4 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { userApi } from '../api/userApi.js'
+import { roleApi } from '../api/roleApi.js'
 import '../styles/create_account.css'
 
 const CreateAccountForm = () => {
@@ -18,6 +20,29 @@ const CreateAccountForm = () => {
     image: null
   })
 
+  const [roles, setRoles] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+
+  // Load roles from backend on component mount
+  useEffect(() => {
+    loadRoles()
+  }, [])
+
+  const loadRoles = async () => {
+    try {
+      const rolesData = await roleApi.getAllRoles()
+      // Extract role names from the database response
+      const roleNames = rolesData.map(role => role.rolname).filter(name => 
+        !name.startsWith('pg_') && name !== 'postgres' && name !== 'template0' && name !== 'template1'
+      )
+      setRoles(roleNames)
+    } catch (error) {
+      console.error('Error loading roles:', error)
+    }
+  }
+
   const handleInputChange = (e) => {
     const { name, value } = e.target
     setFormData(prev => ({
@@ -34,13 +59,87 @@ const CreateAccountForm = () => {
     }))
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    console.log('Form submitted:', formData)
+    
+    // Validation
+    if (!formData.firstName.trim() || !formData.lastName.trim()) {
+      setError("First name and last name are required")
+      return
+    }
+
+    if (!formData.email.trim()) {
+      setError("Email is required")
+      return
+    }
+
+    if (!formData.password) {
+      setError("Password is required")
+      return
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match")
+      return
+    }
+
+    if (!formData.role) {
+      setError("Role is required")
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError("")
+      setSuccess("")
+
+      // Create username from first and last name
+      const username = `${formData.firstName.toLowerCase()}_${formData.lastName.toLowerCase()}`
+
+      // Create user in database
+      await userApi.createUser(username, formData.password)
+
+      // Assign role to user if role exists
+      if (formData.role && roles.includes(formData.role)) {
+        try {
+          await roleApi.assignRoleToUser(formData.role, username)
+        } catch (roleError) {
+          console.error('Error assigning role:', roleError)
+          // Continue even if role assignment fails
+        }
+      }
+
+      setSuccess("Account created successfully!")
+      
+      // Reset form
+      setFormData({
+        firstName: '',
+        lastName: '',
+        dateOfBirth: '',
+        address: '',
+        email: '',
+        phoneNumber: '',
+        type: '',
+        country: '',
+        password: '',
+        confirmPassword: '',
+        role: '',
+        hospital: '',
+        image: null
+      })
+
+      // Reload roles to get updated list
+      await loadRoles()
+
+    } catch (error) {
+      console.error('Error creating account:', error)
+      setError('Failed to create account. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const userData = [
-    
     {
       name: 'Thean',
       phoneNumber: '077941841',
@@ -87,6 +186,9 @@ const CreateAccountForm = () => {
           <p className="subtitle">For Keep track patient & control database</p>
         </div>
 
+        {error && <div className="error-message" style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
+        {success && <div className="success-message" style={{ color: 'green', marginBottom: '10px' }}>{success}</div>}
+
         <form className="account-form" onSubmit={handleSubmit}>
           <div className="form-grid">
             <div className="form-group">
@@ -98,6 +200,8 @@ const CreateAccountForm = () => {
                 value={formData.firstName}
                 onChange={handleInputChange}
                 className="form-input"
+                disabled={loading}
+                required
               />
             </div>
 
@@ -110,6 +214,8 @@ const CreateAccountForm = () => {
                 value={formData.lastName}
                 onChange={handleInputChange}
                 className="form-input"
+                disabled={loading}
+                required
               />
             </div>
 
@@ -123,6 +229,7 @@ const CreateAccountForm = () => {
                   value={formData.dateOfBirth}
                   onChange={handleInputChange}
                   className="form-input date-input"
+                  disabled={loading}
                 />
                 <svg className="calendar-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
@@ -142,6 +249,7 @@ const CreateAccountForm = () => {
                 value={formData.address}
                 onChange={handleInputChange}
                 className="form-input"
+                disabled={loading}
               />
             </div>
 
@@ -154,6 +262,8 @@ const CreateAccountForm = () => {
                 value={formData.email}
                 onChange={handleInputChange}
                 className="form-input"
+                disabled={loading}
+                required
               />
             </div>
 
@@ -166,6 +276,7 @@ const CreateAccountForm = () => {
                 value={formData.phoneNumber}
                 onChange={handleInputChange}
                 className="form-input"
+                disabled={loading}
               />
             </div>
 
@@ -178,6 +289,7 @@ const CreateAccountForm = () => {
                   value={formData.type}
                   onChange={handleInputChange}
                   className="form-select"
+                  disabled={loading}
                 >
                   <option value="">Select type</option>
                   <option value="patient">Patient</option>
@@ -199,6 +311,7 @@ const CreateAccountForm = () => {
                 value={formData.country}
                 onChange={handleInputChange}
                 className="form-input"
+                disabled={loading}
               />
             </div>
 
@@ -211,6 +324,8 @@ const CreateAccountForm = () => {
                 value={formData.password}
                 onChange={handleInputChange}
                 className="form-input"
+                disabled={loading}
+                required
               />
             </div>
 
@@ -223,6 +338,8 @@ const CreateAccountForm = () => {
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
                 className="form-input"
+                disabled={loading}
+                required
               />
             </div>
 
@@ -235,12 +352,13 @@ const CreateAccountForm = () => {
                   value={formData.role}
                   onChange={handleInputChange}
                   className="form-select"
+                  disabled={loading}
+                  required
                 >
                   <option value="">Select role</option>
-                  <option value="admin">Admin</option>
-                  <option value="doctor">Doctor</option>
-                  <option value="nurse">Nurse</option>
-                  <option value="patient">Patient</option>
+                  {roles.map((role) => (
+                    <option key={role} value={role}>{role}</option>
+                  ))}
                 </select>
                 <svg className="select-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="6,9 12,15 18,9"></polyline>
@@ -257,6 +375,7 @@ const CreateAccountForm = () => {
                 value={formData.hospital}
                 onChange={handleInputChange}
                 className="form-input"
+                disabled={loading}
               />
             </div>
           </div>
@@ -272,6 +391,7 @@ const CreateAccountForm = () => {
                   onChange={handleFileChange}
                   className="file-input"
                   accept="image/*"
+                  disabled={loading}
                 />
                 <div className="file-upload-display">
                   <svg className="upload-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -283,8 +403,8 @@ const CreateAccountForm = () => {
               </div>
             </div>
 
-            <button type="submit" className="create-button">
-              Create
+            <button type="submit" className="create-button" disabled={loading}>
+              {loading ? "Creating..." : "Create"}
             </button>
           </div>
         </form>

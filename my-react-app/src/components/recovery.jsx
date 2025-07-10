@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { backupApi } from "../api/backupApi.js"
 import "../styles/recovery.css"
 
 const FolderIcon = () => (
@@ -37,42 +38,11 @@ const ClockIcon = () => (
 )
 
 const RecoveryDashboard = () => {
-  const [recoveryData, setRecoveryData] = useState([
-    {
-      id: 1,
-      type: "Recovery",
-      lastAction: "last recovery yesterday 22:22 AM",
-      status: "Pending",
-      progress: 0,
-      isProcessing: false,
-    },
-    {
-      id: 2,
-      type: "Recovery",
-      lastAction: "last recovery 2023-10-04 11:11 AM",
-      status: "Completed",
-      progress: 100,
-      isProcessing: false,
-    },
-    {
-      id: 3,
-      type: "Recovery",
-      lastAction: "last recovery 2020-12-31 11:11 AM",
-      status: "Completed",
-      progress: 100,
-      isProcessing: false,
-    },
-    {
-      id: 4,
-      type: "Backup",
-      lastAction: "last backup 2015-01-01 11:11 AM",
-      status: "Completed",
-      progress: 100,
-      isProcessing: false,
-    },
-  ])
+  const [recoveryData, setRecoveryData] = useState([])
 
   const [isRecoveryRunning, setIsRecoveryRunning] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
 
   const getStatusClass = (status) => {
     switch (status) {
@@ -100,58 +70,63 @@ const RecoveryDashboard = () => {
     return `last recovery ${now.toLocaleDateString("en-US", options)}`
   }
 
-  const startRecovery = () => {
-    setIsRecoveryRunning(true)
+  const startRecovery = async () => {
+    if (window.confirm("Are you sure you want to restore the database? This will overwrite current data.")) {
+      setIsRecoveryRunning(true)
+      setError("")
+      setSuccess("")
 
-    // Find the first pending recovery item
-    const pendingIndex = recoveryData.findIndex((item) => item.status === "Pending")
+      // Create new recovery entry
+      const newRecovery = {
+        id: Date.now(),
+        type: "Recovery",
+        lastAction: formatCurrentTime(),
+        status: "Processing",
+        progress: 0,
+        isProcessing: true,
+      }
 
-    if (pendingIndex !== -1) {
-      // Update the item to processing state
-      setRecoveryData((prev) =>
-        prev.map((item, index) =>
-          index === pendingIndex
-            ? {
-                ...item,
-                status: "Processing",
-                isProcessing: true,
-                lastAction: formatCurrentTime(),
-              }
-            : item,
-        ),
-      )
+      setRecoveryData([newRecovery])
 
-      // Simulate recovery progress
-      let progress = 0
-      const interval = setInterval(() => {
-        progress += Math.random() * 15 + 5 // Random progress between 5-20%
+      try {
+        // Call backend restore API
+        await backupApi.restoreBackup()
 
-        if (progress >= 100) {
-          progress = 100
-          clearInterval(interval)
+        // Mark as completed
+        setRecoveryData((prev) =>
+          prev.map((item) =>
+            item.id === newRecovery.id
+              ? {
+                  ...item,
+                  status: "Completed",
+                  progress: 100,
+                  isProcessing: false,
+                }
+              : item,
+          ),
+        )
 
-          // Mark as completed
-          setRecoveryData((prev) =>
-            prev.map((item, index) =>
-              index === pendingIndex
-                ? {
-                    ...item,
-                    status: "Completed",
-                    progress: 100,
-                    isProcessing: false,
-                  }
-                : item,
-            ),
-          )
+        setSuccess("Database recovery completed successfully!")
+      } catch (error) {
+        console.error('Recovery failed:', error)
+        
+        // Mark as failed
+        setRecoveryData((prev) =>
+          prev.map((item) =>
+            item.id === newRecovery.id
+              ? {
+                  ...item,
+                  status: "Failed",
+                  isProcessing: false,
+                }
+              : item,
+          ),
+        )
 
-          setIsRecoveryRunning(false)
-        } else {
-          // Update progress
-          setRecoveryData((prev) =>
-            prev.map((item, index) => (index === pendingIndex ? { ...item, progress: Math.min(progress, 100) } : item)),
-          )
-        }
-      }, 800)
+        setError("Recovery failed. Please try again.")
+      } finally {
+        setIsRecoveryRunning(false)
+      }
     }
   }
 
@@ -163,50 +138,59 @@ const RecoveryDashboard = () => {
         </button>
       </div>
 
+      {error && <div className="error-message" style={{ color: 'red', marginBottom: '10px', textAlign: 'center' }}>{error}</div>}
+      {success && <div className="success-message" style={{ color: 'green', marginBottom: '10px', textAlign: 'center' }}>{success}</div>}
+
       <div className="cards-grid">
-        {recoveryData.map((item) => (
-          <div key={item.id} className={`card ${item.isProcessing ? "processing pulse" : ""}`}>
-            <div className="card-header">
-              <h2 className="card-title">{item.type}</h2>
-              <p className="card-subtitle">{item.lastAction}</p>
-            </div>
-
-            <div className="card-content">
-              <div className="column">
-                <FolderIcon />
-                <p className="column-label">Source</p>
-                <p className="column-value">168.88GB</p>
-              </div>
-
-              <div className="column">
-                <CloudIcon />
-                <p className="column-label">Backup</p>
-                <p className="column-value">168.88GB</p>
-              </div>
-
-              <div className="column">
-                <ClockIcon />
-                <p className="column-label">Status</p>
-                <p className={`column-value ${getStatusClass(item.status)}`}>
-                  {item.status === "Processing" ? (
-                    <span className="processing-indicator">
-                      <span className="spinner"></span>
-                      Processing
-                    </span>
-                  ) : (
-                    item.status
-                  )}
-                </p>
-              </div>
-            </div>
-
-            {item.isProcessing && (
-              <div className="progress-bar">
-                <div className="progress-fill" style={{ width: `${item.progress}%` }}></div>
-              </div>
-            )}
+        {recoveryData.length === 0 ? (
+          <div className="no-recoveries" style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+            No recoveries performed yet. Click "Recovery" to restore the database.
           </div>
-        ))}
+        ) : (
+          recoveryData.map((item) => (
+            <div key={item.id} className={`card ${item.isProcessing ? "processing pulse" : ""}`}>
+              <div className="card-header">
+                <h2 className="card-title">{item.type}</h2>
+                <p className="card-subtitle">{item.lastAction}</p>
+              </div>
+
+              <div className="card-content">
+                <div className="column">
+                  <FolderIcon />
+                  <p className="column-label">Source</p>
+                  <p className="column-value">168.88GB</p>
+                </div>
+
+                <div className="column">
+                  <CloudIcon />
+                  <p className="column-label">Backup</p>
+                  <p className="column-value">168.88GB</p>
+                </div>
+
+                <div className="column">
+                  <ClockIcon />
+                  <p className="column-label">Status</p>
+                  <p className={`column-value ${getStatusClass(item.status)}`}>
+                    {item.status === "Processing" ? (
+                      <span className="processing-indicator">
+                        <span className="spinner"></span>
+                        Processing
+                      </span>
+                    ) : (
+                      item.status
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {item.isProcessing && (
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{ width: `${item.progress}%` }}></div>
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </div>
     </div>
   )
