@@ -1,8 +1,8 @@
-import { client } from 'pg';
+import { Client } from 'pg';
 import dotenv from 'dotenv';
 
 const env = dotenv.config();
-export const client = new client({
+export const client = new Client({
     host: env.parsed.DB_HOST,
     user: env.parsed.DB_USER,
     port: env.parsed.DB_PORT,

@@ -1,6 +1,6 @@
-import { getAllUsers, createUser, deleteUser } from "../service/userServices";
+import { getAllUsers, createUser, deleteUser } from "../service/userServices.js";
 
-export const getAllUsers = async (req, res) => {
+export const getAllUsersCon = async (req, res) => {
     try {
         const users = await getAllUsers();
         res.status(200).json(users);
@@ -10,7 +10,7 @@ export const getAllUsers = async (req, res) => {
     }
 }
 
-export const createUser = async (req, res) => {
+export const createUserCon = async (req, res) => {
     const { user, password } = req.body;
     try {
         const result = await createUser(user, password);
@@ -20,7 +20,7 @@ export const createUser = async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 }
-export const deleteUser = async (req, res) => {
+export const deleteUserCon = async (req, res) => {
     const { user } = req.params;
     try {
         const result = await deleteUser(user);
