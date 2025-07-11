@@ -1,6 +1,6 @@
 # 🩸 Blood Donation Management Systems
 
-A web-based blood bank platform built with Ruby on Rails (or adjust framework), enabling seamless management of donors, blood inventories, and mobile-based location-driven donor discovery.
+A web blood bank platform built with Ruby on Rails (or adjust framework), enabling seamless management of donors, blood inventories, and mobile-based location-driven donor discovery.
 
 ## 🚀 Features
 
