@@ -57,13 +57,13 @@ export const assignRoleToUserCon = async (req, res) => {
 }
 
 export const grantPermissionsToRoleCon = async (req, res) => {
-    const { roleName, permissions } = req.body;
+    const { roleName, permissions, entity } = req.body;
     try {
-        const result = await grantPermissionsToRole(roleName, permissions);
+        const result = await grantPermissionsToRole(roleName, { permissions, entity });
         res.status(200).json({ message: "Permissions granted successfully", result });
     } catch (error) {
         console.error("Error granting permissions to role:", error);
-        res.status(500).json({ error: "Internal Server Error" });
+        res.status(500).json({ error: "Internal Server Error", detail: error.message });
     }
 }
 export const revokePermissionsFromRoleCon = async (req, res) => {
@@ -77,9 +77,9 @@ export const revokePermissionsFromRoleCon = async (req, res) => {
     }
 }
 export const revokeRoleFromUserCon = async (req, res) => {
-    const { userId, roleName } = req.body;
+    const { roleName, userName } = req.body;
     try {
-        const result = await revokeRoleFromUser(userId, roleName);
+        const result = await revokeRoleFromUser(roleName, userName);
         res.status(200).json({ message: "Role revoked successfully", result });
     } catch (error) {
         console.error("Error revoking role from user:", error);

@@ -41,9 +41,9 @@ const BackupDashboard = () => {
   const [success, setSuccess] = useState("")
   const [stats, setStats] = useState({
     totalBackups: 0,
-    completedBackups: 0,
     totalSize: "0 MB",
-    lastBackup: "Never",
+    lastBackup: null,
+    backups: []
   })
 
   // Load existing backup info on component mount
@@ -53,13 +53,14 @@ const BackupDashboard = () => {
 
   const loadBackupInfo = async () => {
     try {
-      const backupInfo = await backupApi.getBackupInfo()
-      if (backupInfo.exists) {
-        const backupItem = {
-          id: 1,
+      const backupStats = await backupApi.getAllBackups()
+      setStats(backupStats)
+      
+      if (backupStats.backups && backupStats.backups.length > 0) {
+        const backupItems = backupStats.backups.map(backupInfo => ({
+          id: new Date(backupInfo.createdAt).getTime(),
           name: backupInfo.fileName || "Database Backup",
-          type: "Full",
-          lastAction: `Last backup ${new Date(backupInfo.createdAt).toLocaleDateString("en-US", {
+          lastAction: `Created on ${new Date(backupInfo.createdAt).toLocaleDateString("en-US", {
             year: "numeric",
             month: "2-digit",
             day: "2-digit",
@@ -70,36 +71,13 @@ const BackupDashboard = () => {
           status: "Completed",
           progress: 100,
           isProcessing: false,
-          sourceSize: "Database",
           backupSize: backupInfo.fileSize,
-          duration: "Completed",
-          compression: "N/A",
-          createdAt: backupInfo.createdAt,
-          modifiedAt: backupInfo.modifiedAt,
-          filePath: backupInfo.filePath
-        }
+          createdAt: backupInfo.createdAt
+        }))
         
-        setBackupData([backupItem])
-        setStats({
-          totalBackups: 1,
-          completedBackups: 1,
-          totalSize: backupInfo.fileSize,
-          lastBackup: new Date(backupInfo.createdAt).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-          }),
-        })
+        setBackupData(backupItems)
       } else {
         setBackupData([])
-        setStats({
-          totalBackups: 0,
-          completedBackups: 0,
-          totalSize: "0 MB",
-          lastBackup: "Never",
-        })
       }
     } catch (error) {
       console.error('Error loading backup info:', error)
@@ -122,19 +100,6 @@ const BackupDashboard = () => {
     }
   }
 
-  const getBadgeClass = (type) => {
-    switch (type) {
-      case "Full":
-        return "badge-full"
-      case "Incremental":
-        return "badge-incremental"
-      case "Differential":
-        return "badge-differential"
-      default:
-        return "badge-full"
-    }
-  }
-
   const formatCurrentTime = () => {
     const now = new Date()
     const options = {
@@ -145,7 +110,7 @@ const BackupDashboard = () => {
       minute: "2-digit",
       hour12: true,
     }
-    return `last backup ${now.toLocaleDateString("en-US", options)}`
+    return `Created on ${now.toLocaleDateString("en-US", options)}`
   }
 
   const startBackup = async () => {
@@ -157,49 +122,22 @@ const BackupDashboard = () => {
     const newBackup = {
       id: Date.now(),
       name: "Database Backup",
-      type: "Full",
       lastAction: formatCurrentTime(),
       status: "Processing",
       progress: 0,
       isProcessing: true,
-      sourceSize: "Database",
       backupSize: "Processing...",
-      duration: "In progress",
-      compression: "N/A",
+      createdAt: new Date().toISOString()
     }
 
-    setBackupData([newBackup])
+    setBackupData(prev => [newBackup, ...prev])
 
     try {
       // Call backend backup API
       const backupResult = await backupApi.createBackup()
 
-      // Mark as completed and update with actual data
-      setBackupData((prev) =>
-        prev.map((item) =>
-          item.id === newBackup.id
-            ? {
-                ...item,
-                status: "Completed",
-                progress: 100,
-                isProcessing: false,
-                backupSize: backupResult.fileSize || "Unknown",
-                duration: "Completed",
-                createdAt: backupResult.createdAt,
-                modifiedAt: backupResult.modifiedAt,
-                filePath: backupResult.filePath
-              }
-            : item,
-        ),
-      )
-
-      setStats({
-        totalBackups: 1,
-        completedBackups: 1,
-        totalSize: backupResult.fileSize || "Unknown",
-        lastBackup: "Just now",
-      })
-
+      // Reload backup info to get updated stats
+      await loadBackupInfo()
       setSuccess("Backup completed successfully!")
     } catch (error) {
       console.error('Backup failed:', error)
@@ -212,8 +150,7 @@ const BackupDashboard = () => {
                 ...item,
                 status: "Failed",
                 isProcessing: false,
-                backupSize: "Failed",
-                duration: "Failed",
+                backupSize: "Failed"
               }
             : item,
         ),
@@ -229,110 +166,98 @@ const BackupDashboard = () => {
     <div className="backup-dashboard">
       <div className="backup-header">
         <h1 className="backup-title">Backup Management</h1>
-        <button className="backup-button" onClick={startBackup} disabled={isBackupRunning}>
-          {isBackupRunning ? "Backup in Progress..." : "Start Backup"}
-        </button>
+        <div className="backup-controls">
+          <button className="backup-button" onClick={startBackup} disabled={isBackupRunning}>
+            {isBackupRunning ? "Backup in Progress..." : "Start Full Backup"}
+          </button>
+        </div>
       </div>
 
-      {error && <div className="error-message" style={{ color: 'red', marginBottom: '10px', textAlign: 'center' }}>{error}</div>}
-      {success && <div className="success-message" style={{ color: 'green', marginBottom: '10px', textAlign: 'center' }}>{success}</div>}
+      {error && <div className="error-message">{error}</div>}
+      {success && <div className="success-message">{success}</div>}
 
       <div className="backup-stats">
         <div className="stat-card">
-          <div className="stat-value">{stats.totalBackups}</div>
-          <div className="stat-label">Total Backups</div>
+          <DatabaseIcon />
+          <div className="stat-info">
+            <h3>Total Backups</h3>
+            <p>{stats.totalBackups}</p>
+          </div>
         </div>
+
         <div className="stat-card">
-          <div className="stat-value">{stats.completedBackups}</div>
-          <div className="stat-label">Completed</div>
+          <CloudIcon />
+          <div className="stat-info">
+            <h3>Total Size</h3>
+            <p>{stats.totalSize}</p>
+          </div>
         </div>
+
         <div className="stat-card">
-          <div className="stat-value">{stats.totalSize}</div>
-          <div className="stat-label">Total Size</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{stats.lastBackup}</div>
-          <div className="stat-label">Last Backup</div>
+          <ClockIcon />
+          <div className="stat-info">
+            <h3>Last Backup</h3>
+            <p>
+              {stats.lastBackup
+                ? new Date(stats.lastBackup).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: true,
+                  })
+                : "Never"}
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="backup-cards-grid">
-        {backupData.length === 0 ? (
-          <div className="no-backups" style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
-            No backups created yet. Click "Start Backup" to create your first backup.
-          </div>
-        ) : (
-          backupData.map((item) => (
-            <div
-              key={item.id}
-              className={`backup-card ${item.isProcessing ? "processing backup-pulse" : ""} ${
-                item.status === "Pending" ? "pending" : ""
-              }`}
-            >
-              <div className="backup-card-header">
-                <h2 className="backup-card-title">
-                  {item.name}
-                  <span className={`backup-type-badge ${getBadgeClass(item.type)}`}>{item.type}</span>
-                </h2>
-                <p className="backup-card-subtitle">{item.lastAction}</p>
-              </div>
-
-              <div className="backup-card-content">
-                <div className="backup-column">
-                  <DatabaseIcon />
-                  <p className="backup-column-label">Source</p>
-                  <p className="backup-column-value">{item.sourceSize}</p>
-                </div>
-
-                <div className="backup-column">
-                  <CloudIcon />
-                  <p className="backup-column-label">Backup</p>
-                  <p className="backup-column-value">{item.backupSize}</p>
-                </div>
-
-                <div className="backup-column">
-                  <ClockIcon />
-                  <p className="backup-column-label">Status</p>
-                  <p className={`backup-column-value ${getStatusClass(item.status)}`}>
-                    {item.status === "Processing" ? (
-                      <span className="backup-processing-indicator">
-                        <span className="backup-spinner"></span>
-                        Processing
-                      </span>
-                    ) : (
-                      item.status
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              {item.isProcessing && (
-                <div className="backup-progress-bar">
-                  <div className="backup-progress-fill" style={{ width: `${item.progress}%` }}></div>
-                </div>
-              )}
-
-              <div className="backup-details">
-                <div className="backup-detail-row">
-                  <span className="backup-detail-label">Duration:</span>
-                  <span className="backup-detail-value">{item.duration}</span>
-                </div>
-                <div className="backup-detail-row">
-                  <span className="backup-detail-label">Compression:</span>
-                  <span className="backup-detail-value">{item.compression}</span>
-                </div>
-                {item.filePath && (
-                  <div className="backup-detail-row">
-                    <span className="backup-detail-label">File:</span>
-                    <span className="backup-detail-value" style={{ fontSize: '12px', wordBreak: 'break-all' }}>
-                      {item.filePath}
+      <div className="backup-history">
+        <h2>Backup History</h2>
+        <div className="backup-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Created At</th>
+                <th>Size</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {backupData.map((backup) => (
+                <tr key={backup.id} className={backup.isProcessing ? "processing" : ""}>
+                  <td>{backup.name}</td>
+                  <td>
+                    {backup.createdAt
+                      ? new Date(backup.createdAt).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "2-digit",
+                          day: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })
+                      : "In Progress"}
+                  </td>
+                  <td>{backup.backupSize}</td>
+                  <td>
+                    <span className={`status-badge ${getStatusClass(backup.status)}`}>
+                      {backup.status}
                     </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))
-        )}
+                  </td>
+                </tr>
+              ))}
+              {backupData.length === 0 && (
+                <tr>
+                  <td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>
+                    No backups available. Click "Start Full Backup" to create your first backup.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )

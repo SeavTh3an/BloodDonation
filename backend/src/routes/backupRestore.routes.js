@@ -1,9 +1,11 @@
-import express, {Router} from 'express'
+import express from 'express'
+import { backupDatabaseCon, getBackupInfoCon, getAllBackupsCon } from '../controller/backupController.js'
 import { restoreDatabaseCon } from '../controller/restoreController.js'
-import { backupDatabaseCon, getBackupInfoCon } from '../controller/backupController.js'
 
-export const BRrouter = Router();
+export const router = express.Router()
 
-BRrouter.post('/restore', restoreDatabaseCon);
-BRrouter.post('/backup', backupDatabaseCon);
-BRrouter.get('/backup/info', getBackupInfoCon);
+router.post('/backup', backupDatabaseCon)
+router.get('/backup/all', getAllBackupsCon)
+router.get('/backup/info', getBackupInfoCon) // Default route for getting backup info
+router.get('/backup/:fileName', getBackupInfoCon) // Route with filename parameter
+router.post('/restore', restoreDatabaseCon)

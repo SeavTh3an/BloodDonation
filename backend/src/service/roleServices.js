@@ -179,13 +179,14 @@ export const revokeRoleFromUser = async (roleName, userName) => {
     }
 }
 
-export const grantPermissionsToRole = async (roleName, permissions) => {
+export const grantPermissionsToRole = async (roleName, { permissions, entity }) => {
     try {
         const perms = Array.isArray(permissions) ? permissions.join(', ') : permissions;
-        // Use proper quoting for role name
-        const query = `GRANT ${perms} TO "${roleName}";`;
+        // Use proper quoting for role name and table name
+        const query = `GRANT ${perms} ON TABLE public.${entity} TO "${roleName}";`;
+        console.log('Executing grant query:', query);
         const result = await client.query(query);
-        console.log(`Permissions ${perms} granted to role ${roleName}`);
+        console.log(`Permissions ${perms} granted to role ${roleName} on table ${entity}`);
         return result;
     }
     catch (error) {

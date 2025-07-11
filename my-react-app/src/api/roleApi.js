@@ -35,11 +35,12 @@ export const roleApi = {
   },
 
   // Grant permissions to a role
-  grantPermissions: async (roleName, permissions) => {
+  grantPermissions: async (roleName, { permissions, entity }) => {
     try {
       const response = await api.post('/roles/permissions/grant', {
         roleName,
-        permissions
+        permissions,
+        entity
       })
       return response.data
     } catch (error) {

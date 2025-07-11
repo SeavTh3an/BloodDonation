@@ -1,59 +1,78 @@
 import { spawn } from 'child_process'
-import { mkdirSync, statSync, existsSync } from 'fs'
-import { dirname } from 'path'
+import { mkdirSync, statSync, existsSync, readdirSync } from 'fs'
+import path from 'path'
 
-export function backupPostgres({ host, port, user, password, dbName, outputFile }) {
-  mkdirSync(dirname(outputFile), { recursive: true })
+// Backup types enum
+export const BackupType = {
+  FULL: 'FULL'
+}
 
-  const env = { ...process.env, PGPASSWORD: password }
-  const args = [
-    `--host=${host}`,
-    `--port=${port}`,
-    `--username=${user}`,
-    `--dbname=${dbName}`,
-    `--file=${outputFile}`,
-  ]
+export function generateBackupFileName() {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+  return `blood_backup_full_${timestamp}.sql`
+}
 
+export function backupPostgres({ host, port, user, password, dbName }) {
   return new Promise((resolve, reject) => {
-    const dump = spawn('pg_dump', args, { env })
+    try {
+      // Ensure backup directory exists
+      const backupDir = path.resolve('./src/backups')
+      mkdirSync(backupDir, { recursive: true })
 
-    dump.on('close', (code) => {
-      if (code === 0) {
-        // Get file information after successful backup
-        try {
-          const fileStats = statSync(outputFile)
-          const fileSizeInBytes = fileStats.size
-          const fileSizeInMB = (fileSizeInBytes / (1024 * 1024)).toFixed(2)
-          
-          const backupInfo = {
-            message: `Backup successful. File saved as ${outputFile}`,
-            filePath: outputFile,
-            fileName: outputFile.split('/').pop(),
-            fileSize: `${fileSizeInMB} MB`,
-            fileSizeBytes: fileSizeInBytes,
-            createdAt: fileStats.birthtime,
-            modifiedAt: fileStats.mtime,
-            exists: true
+      const outputFile = path.join(backupDir, generateBackupFileName())
+      console.log('Backup path:', outputFile)
+
+      const env = { ...process.env, PGPASSWORD: password }
+      const args = [
+        `-h`, host,
+        `-p`, port,
+        `-U`, user,
+        `-d`, dbName,
+        `-f`, outputFile,
+        `-v`, // Verbose output
+        `--no-owner`,
+        `--no-acl`
+      ]
+
+      console.log('Running pg_dump with args:', args.join(' '))
+      const dump = spawn('pg_dump', args, { env })
+
+      let errorOutput = ''
+      
+      dump.stdout.on('data', (data) => {
+        console.log('pg_dump output:', data.toString())
+      })
+
+      dump.stderr.on('data', (data) => {
+        errorOutput += data.toString()
+        console.error('pg_dump error:', data.toString())
+      })
+
+      dump.on('close', (code) => {
+        if (code === 0) {
+          try {
+            const backupInfo = getBackupInfo(outputFile)
+            console.log('Backup completed successfully:', backupInfo)
+            resolve(backupInfo)
+          } catch (statError) {
+            console.error('Error getting file stats:', statError)
+            reject(new Error(`Backup failed: ${statError.message}`))
           }
-          
-          resolve(backupInfo)
-        } catch (statError) {
-          console.error('Error getting file stats:', statError)
-          resolve({
-            message: `Backup successful. File saved as ${outputFile}`,
-            filePath: outputFile,
-            fileName: outputFile.split('/').pop(),
-            fileSize: 'Unknown',
-            fileSizeBytes: 0,
-            createdAt: new Date(),
-            modifiedAt: new Date(),
-            exists: false
-          })
+        } else {
+          console.error('pg_dump failed with code:', code)
+          reject(new Error(`Backup failed with exit code ${code}. Error: ${errorOutput}`))
         }
-      } else {
-        reject(new Error(`Backup failed with exit code ${code}`))
-      }
-    })
+      })
+
+      dump.on('error', (error) => {
+        console.error('Failed to start pg_dump:', error)
+        reject(new Error(`Failed to start backup process: ${error.message}`))
+      })
+
+    } catch (error) {
+      console.error('Error in backupPostgres:', error)
+      reject(new Error(`Backup failed: ${error.message}`))
+    }
   })
 }
 
@@ -73,7 +92,7 @@ export function getBackupInfo(outputFile) {
     return {
       exists: true,
       filePath: outputFile,
-      fileName: outputFile.split('/').pop(),
+      fileName: path.basename(outputFile),
       fileSize: `${fileSizeInMB} MB`,
       fileSizeBytes: fileSizeInBytes,
       createdAt: fileStats.birthtime,
@@ -82,10 +101,37 @@ export function getBackupInfo(outputFile) {
     }
   } catch (error) {
     console.error('Error getting backup info:', error)
-    return {
-      exists: false,
-      message: 'Error reading backup file',
-      error: error.message
+    throw error
+  }
+}
+
+export function getAllBackups() {
+  const backupDir = path.resolve('./src/backups')
+  try {
+    if (!existsSync(backupDir)) {
+      return []
     }
+
+    const files = readdirSync(backupDir)
+    return files
+      .filter(file => file.startsWith('blood_backup_full_') && file.endsWith('.sql'))
+      .map(file => getBackupInfo(path.join(backupDir, file)))
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  } catch (error) {
+    console.error('Error getting all backups:', error)
+    return []
+  }
+}
+
+export function getBackupStats() {
+  const backups = getAllBackups()
+  const totalSizeBytes = backups.reduce((sum, backup) => sum + backup.fileSizeBytes, 0)
+  const totalSizeMB = (totalSizeBytes / (1024 * 1024)).toFixed(2)
+  
+  return {
+    totalBackups: backups.length,
+    totalSize: `${totalSizeMB} MB`,
+    lastBackup: backups.length > 0 ? backups[0].createdAt : null,
+    backups: backups
   }
 }

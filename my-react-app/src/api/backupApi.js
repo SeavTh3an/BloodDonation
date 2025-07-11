@@ -1,5 +1,9 @@
 import api from './axios.js'
 
+export const BackupType = {
+  FULL: 'FULL'
+}
+
 export const backupApi = {
   // Create database backup
   createBackup: async () => {
@@ -12,24 +16,25 @@ export const backupApi = {
     }
   },
 
-  // Restore database from backup
-  restoreBackup: async () => {
+  // Get backup info
+  getBackupInfo: async (fileName) => {
     try {
-      const response = await api.post('/restore')
+      const url = fileName ? `/backup/${encodeURIComponent(fileName)}` : '/backup/info'
+      const response = await api.get(url)
       return response.data
     } catch (error) {
-      console.error('Error restoring backup:', error)
+      console.error('Error getting backup info:', error)
       throw error
     }
   },
 
-  // Get backup info
-  getBackupInfo: async () => {
+  // Get all backups
+  getAllBackups: async () => {
     try {
-      const response = await api.get('/backup/info')
+      const response = await api.get('/backup/all')
       return response.data
     } catch (error) {
-      console.error('Error getting backup info:', error)
+      console.error('Error getting all backups:', error)
       throw error
     }
   }

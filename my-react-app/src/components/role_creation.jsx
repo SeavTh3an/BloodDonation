@@ -97,8 +97,13 @@ const RoleManagement = () => {
       // Grant permissions to the role (only if permissions are selected)
       if (selectedPermissions.length > 0) {
         try {
-          console.log('Granting permissions:', selectedPermissions)
-          await roleApi.grantPermissions(roleName.trim(), selectedPermissions)
+          console.log('Granting permissions:', selectedPermissions, 'for entities:', selectedEntities)
+          for (const entity of selectedEntities) {
+            await roleApi.grantPermissions(roleName.trim(), {
+              permissions: selectedPermissions,
+              entity: entity.toLowerCase().replace(' ', '_')
+            })
+          }
         } catch (permError) {
           console.warn('Warning: Could not grant permissions:', permError)
           // Continue even if permissions fail - role was created successfully
