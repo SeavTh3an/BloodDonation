@@ -2,7 +2,13 @@ import { client } from "../config/db.js";
 
 export const getAllUsers = async () => {
     try {
-        const query = "SELECT * FROM pg_user;";
+        // Only return users with login privilege
+        const query = `
+            SELECT r.rolname as username, r.rolcanlogin
+            FROM pg_roles r
+            WHERE r.rolcanlogin = true
+            ORDER BY r.rolname;
+        `;
         const result = await client.query(query);
         console.log("Fetched users:", result.rows);
         return result.rows;
@@ -14,7 +20,7 @@ export const getAllUsers = async () => {
 
 export const createUser = async (user, password) => {
     try {
-        const query = `CREATE USER ${user} WITH PASSWORD ${password};`
+        const query = `CREATE USER "${user}" WITH PASSWORD '${password}';`
         const result = await client.query(query);
         return result;
     }catch (error) {
@@ -24,7 +30,7 @@ export const createUser = async (user, password) => {
 }
 export const deleteUser = async (user) => {
     try {
-        const query = `DROP USER ${user};`
+        const query = `DROP USER "${user}";`
         const result = await client.query(query);
         return result;
     }

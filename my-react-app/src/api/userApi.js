@@ -43,5 +43,38 @@ export const userApi = {
       console.error('Error updating user status:', error)
       throw error
     }
+  },
+
+  // Grant permissions to a user
+  grantPermissions: async (userName, { permissions, entity }) => {
+    try {
+      const response = await api.post('/users/permissions/grant', { userName, permissions, entity })
+      return response.data
+    } catch (error) {
+      console.error('Error granting permissions to user:', error)
+      throw error
+    }
+  },
+
+  // Get permissions for a user
+  getUserPermissions: async (userName) => {
+    try {
+      const response = await api.get(`/users/${userName}/permissions`)
+      return response.data
+    } catch (error) {
+      console.error('Error getting user permissions:', error)
+      throw error
+    }
+  },
+
+  // Get all users with roles and permissions
+  getAllUserDetails: async () => {
+    try {
+      const response = await api.get('/users/details')
+      return response.data
+    } catch (error) {
+      console.error('Error fetching user details:', error)
+      throw error
+    }
   }
 } 

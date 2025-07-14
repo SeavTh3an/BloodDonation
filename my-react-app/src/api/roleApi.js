@@ -50,12 +50,11 @@ export const roleApi = {
   },
 
   // Revoke permissions from a role
-  revokePermissions: async (roleName, permissions) => {
+  revokePermissions: async (roleName, permissions, entity) => {
     try {
-      const response = await api.post('/roles/permissions/revoke', {
-        roleName,
-        permissions
-      })
+      const payload = { roleName, permissions };
+      if (entity) payload.entity = entity;
+      const response = await api.post('/roles/permissions/revoke', payload)
       return response.data
     } catch (error) {
       console.error('Error revoking permissions:', error)

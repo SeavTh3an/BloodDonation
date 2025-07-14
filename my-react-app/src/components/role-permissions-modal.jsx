@@ -31,6 +31,20 @@ const RolePermissionsModal = ({ roleName, isOpen, onClose }) => {
     }
   }
 
+  // Add revoke handler
+  const handleRevokeTablePermission = async (perm, tableGroup) => {
+    try {
+      setLoading(true)
+      // Pass only the table name, not schema.table
+      await roleApi.revokePermissions(roleName, [perm], tableGroup.table)
+      await loadRolePermissions()
+    } catch (error) {
+      setError('Failed to revoke permission. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const renderTablePermissions = () => {
     if (!permissions.tables || permissions.tables.length === 0) {
       return <p style={{ color: '#666', fontStyle: 'italic' }}>No table permissions found</p>
@@ -65,10 +79,30 @@ const RolePermissionsModal = ({ roleName, isOpen, onClose }) => {
                 color: 'white',
                 borderRadius: '4px',
                 fontSize: '12px',
-                fontWeight: '500'
+                fontWeight: '500',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
               }}
             >
               {perm}
+              <button
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#ef4444',
+                  fontWeight: 'bold',
+                  fontSize: '14px',
+                  marginLeft: '4px',
+                  cursor: 'pointer',
+                  lineHeight: 1
+                }}
+                title={`Revoke ${perm} on ${tableGroup.schema}.${tableGroup.table}`}
+                disabled={loading}
+                onClick={() => handleRevokeTablePermission(perm, tableGroup)}
+              >
+                ×
+              </button>
             </span>
           ))}
         </div>
@@ -76,116 +110,8 @@ const RolePermissionsModal = ({ roleName, isOpen, onClose }) => {
     ))
   }
 
-  const renderDatabasePermissions = () => {
-    if (!permissions.database || permissions.database.length === 0) {
-      return <p style={{ color: '#666', fontStyle: 'italic' }}>No database permissions found</p>
-    }
-
-    return (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-        {permissions.database.map((perm, index) => (
-          <span
-            key={index}
-            style={{
-              padding: '4px 8px',
-              backgroundColor: '#10b981',
-              color: 'white',
-              borderRadius: '4px',
-              fontSize: '12px',
-              fontWeight: '500'
-            }}
-          >
-            {perm.privilege_type}
-          </span>
-        ))}
-      </div>
-    )
-  }
-
-  const renderSchemaPermissions = () => {
-    if (!permissions.schemas || permissions.schemas.length === 0) {
-      return <p style={{ color: '#666', fontStyle: 'italic' }}>No schema permissions found</p>
-    }
-
-    // Group permissions by schema
-    const schemaGroups = permissions.schemas.reduce((groups, perm) => {
-      if (!groups[perm.schema_name]) {
-        groups[perm.schema_name] = []
-      }
-      groups[perm.schema_name].push(perm.privilege_type)
-      return groups
-    }, {})
-
-    return Object.entries(schemaGroups).map(([schema, perms], index) => (
-      <div key={index} style={{ marginBottom: '10px' }}>
-        <h5 style={{ margin: '0 0 5px 0', color: '#374151', fontSize: '13px', fontWeight: '600' }}>
-          Schema: {schema}
-        </h5>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-          {perms.map((perm, permIndex) => (
-            <span
-              key={permIndex}
-              style={{
-                padding: '3px 6px',
-                backgroundColor: '#f59e0b',
-                color: 'white',
-                borderRadius: '3px',
-                fontSize: '11px',
-                fontWeight: '500'
-              }}
-            >
-              {perm}
-            </span>
-          ))}
-        </div>
-      </div>
-    ))
-  }
-
-  const renderRoleInfo = () => {
-    if (!permissions.roleInfo) {
-      return null
-    }
-
-    const roleInfo = permissions.roleInfo
-    const capabilities = []
-
-    if (roleInfo.rolcanlogin) capabilities.push('Can Login')
-
-    return (
-      <div style={{ marginBottom: '20px' }}>
-        <h3 style={{ marginBottom: '10px', color: '#555', fontSize: '16px' }}>Role Information</h3>
-        <div style={{ marginBottom: '10px' }}>
-          <strong>Role Name:</strong> {roleInfo.rolname}
-        </div>
-        <div style={{ marginBottom: '10px' }}>
-          <strong>Can Login:</strong> {roleInfo.rolcanlogin ? 'Yes' : 'No'}
-        </div>
-        {capabilities.length > 0 && (
-          <div style={{ marginTop: '10px' }}>
-            <strong>Capabilities:</strong>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '5px' }}>
-              {capabilities.map((capability, index) => (
-                <span
-                  key={index}
-                  style={{
-                    padding: '4px 8px',
-                    backgroundColor: '#8b5cf6',
-                    color: 'white',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    fontWeight: '500'
-                  }}
-                >
-                  {capability}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
+  // Remove renderRoleInfo, renderDatabasePermissions, renderSchemaPermissions, and their calls in the modal body
+  // Only show table permissions
 
   if (!isOpen) return null
 
@@ -245,36 +171,25 @@ const RolePermissionsModal = ({ roleName, isOpen, onClose }) => {
             <div style={{ textAlign: 'center', padding: '20px' }}>
               Loading permissions...
             </div>
-                      ) : (
-              <div>
-                {permissions.database.length === 0 && permissions.schemas.length === 0 && permissions.tables.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
-                    <p>This role has no permissions assigned yet.</p>
-                    <p style={{ fontSize: '14px', marginTop: '10px' }}>
-                      Permissions can be granted through the role creation process or by a database administrator.
-                    </p>
+          ) : (
+            <div>
+              {permissions.tables.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                  <p>This role has no permissions assigned yet.</p>
+                  <p style={{ fontSize: '14px', marginTop: '10px' }}>
+                    Permissions can be granted through the role creation process or by a database administrator.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div style={{ marginBottom: '20px' }}>
+                    <h3 style={{ marginBottom: '10px', color: '#555', fontSize: '16px' }}>Table Permissions</h3>
+                    {renderTablePermissions()}
                   </div>
-                ) : (
-                  <>
-                    {renderRoleInfo()}
-                    <div style={{ marginBottom: '20px' }}>
-                      <h3 style={{ marginBottom: '10px', color: '#555', fontSize: '16px' }}>Database Permissions</h3>
-                      {renderDatabasePermissions()}
-                    </div>
-
-                    <div style={{ marginBottom: '20px' }}>
-                      <h3 style={{ marginBottom: '10px', color: '#555', fontSize: '16px' }}>Schema Permissions</h3>
-                      {renderSchemaPermissions()}
-                    </div>
-
-                    <div style={{ marginBottom: '20px' }}>
-                      <h3 style={{ marginBottom: '10px', color: '#555', fontSize: '16px' }}>Table Permissions</h3>
-                      {renderTablePermissions()}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="modal-footer" style={{

@@ -1,4 +1,4 @@
-import { createRole, getAllRoles, deleteRole, assignRoleToUser, grantPermissionsToRole, revokePermissionsFromRole, revokeRoleFromUser, getUserRoles, getRolePermissions, getUsersWithRole, revokeRoleFromAllUsers } from "../service/roleServices.js";
+import { createRole, getAllRoles, deleteRole, assignRoleToUser, grantPermissionsToRole, revokePermissionsFromRole, revokeRoleFromUser, getUserRoles, getRolePermissions, getUsersWithRole, revokeRoleFromAllUsers, grantPermissionsToUser, revokePermissionsFromUser } from "../service/roleServices.js";
 
 export const getAllRolesCon = async (req, res) => {
     try {
@@ -26,6 +26,16 @@ export const deleteRoleCon = async (req, res) => {
     const { roleName } = req.params;
     try {
         console.log(`Attempting to delete role: ${roleName}`);
+        
+        // First check if the role exists
+        const roles = await getAllRoles();
+        const roleExists = roles.some(role => role.rolname === roleName);
+        if (!roleExists) {
+            return res.status(404).json({ 
+                error: `Role "${roleName}" does not exist.`
+            });
+        }
+
         const result = await deleteRole(roleName);
         res.status(200).json({ message: `Role ${roleName} deleted successfully` });
     } catch (error) {
@@ -33,15 +43,23 @@ export const deleteRoleCon = async (req, res) => {
         
         // Check for specific error types
         let errorMessage = "Failed to delete role";
-        if (error.message.includes("cannot be dropped")) {
-            errorMessage = `Cannot delete role "${roleName}" because it is still assigned to users or has dependencies. Please remove all users from this role first.`;
+        let statusCode = 500;
+
+        if (error.message.includes("still assigned to")) {
+            errorMessage = error.message;
+            statusCode = 400;
         } else if (error.message.includes("does not exist")) {
             errorMessage = `Role "${roleName}" does not exist.`;
+            statusCode = 404;
         } else {
             errorMessage = `Failed to delete role: ${error.message}`;
         }
         
-        res.status(500).json({ error: errorMessage, detail: error.message });
+        res.status(statusCode).json({ 
+            error: errorMessage, 
+            detail: error.message,
+            code: statusCode
+        });
     }
 }
 
@@ -67,9 +85,9 @@ export const grantPermissionsToRoleCon = async (req, res) => {
     }
 }
 export const revokePermissionsFromRoleCon = async (req, res) => {
-    const { roleName, permissions } = req.body;
+    const { roleName, permissions, entity } = req.body;
     try {
-        const result = await revokePermissionsFromRole(roleName, permissions);
+        const result = await revokePermissionsFromRole(roleName, permissions, entity);
         res.status(200).json({ message: "Permissions revoked successfully", result });
     } catch (error) {
         console.error("Error revoking permissions from role:", error);
@@ -145,6 +163,28 @@ export const revokeRoleFromAllUsersCon = async (req, res) => {
         res.status(200).json(result);
     } catch (error) {
         console.error("Error revoking role from all users:", error);
+        res.status(500).json({ error: "Internal Server Error", detail: error.message });
+    }
+}
+
+export const grantPermissionsToUserCon = async (req, res) => {
+    const { userName, permissions, entity } = req.body;
+    try {
+        const result = await grantPermissionsToUser(userName, { permissions, entity });
+        res.status(200).json({ message: "Permissions granted to user successfully", result });
+    } catch (error) {
+        console.error("Error granting permissions to user:", error);
+        res.status(500).json({ error: "Internal Server Error", detail: error.message });
+    }
+}
+
+export const revokePermissionsFromUserCon = async (req, res) => {
+    const { userName, permissions } = req.body;
+    try {
+        const result = await revokePermissionsFromUser(userName, permissions);
+        res.status(200).json({ message: "Permissions revoked from user successfully", result });
+    } catch (error) {
+        console.error("Error revoking permissions from user:", error);
         res.status(500).json({ error: "Internal Server Error", detail: error.message });
     }
 }

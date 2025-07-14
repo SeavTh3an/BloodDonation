@@ -139,8 +139,38 @@ export const createRole = async (roleName) => {
 
 export const deleteRole = async (roleName) => {
     try {
-        // Use proper quoting for role names to handle special characters
-        const query = `DROP ROLE "${roleName}";`
+        // First check if the role has any users
+        const users = await getUsersWithRole(roleName);
+        if (users.length > 0) {
+            throw new Error(`Role "${roleName}" is still assigned to ${users.length} user(s). Please remove all users from this role first.`);
+        }
+
+        // Revoke all permissions from the role first
+        const permissions = await getRolePermissions(roleName);
+        
+        // Revoke table permissions
+        for (const perm of permissions.tables) {
+            const query = `REVOKE ${perm.privilege_type} ON TABLE ${perm.schemaname}.${perm.tablename} FROM "${roleName}";`;
+            await client.query(query);
+            console.log(`Revoked ${perm.privilege_type} on ${perm.schemaname}.${perm.tablename} from ${roleName}`);
+        }
+
+        // Revoke schema permissions
+        for (const perm of permissions.schemas) {
+            const query = `REVOKE ${perm.privilege_type} ON SCHEMA ${perm.schema_name} FROM "${roleName}";`;
+            await client.query(query);
+            console.log(`Revoked ${perm.privilege_type} on schema ${perm.schema_name} from ${roleName}`);
+        }
+
+        // Revoke database permissions
+        for (const perm of permissions.database) {
+            const query = `REVOKE ${perm.privilege_type} ON DATABASE blood_donation_system FROM "${roleName}";`;
+            await client.query(query);
+            console.log(`Revoked ${perm.privilege_type} on database from ${roleName}`);
+        }
+
+        // Now try to drop the role
+        const query = `DROP ROLE "${roleName}";`;
         const result = await client.query(query);
         console.log(`Role ${roleName} deleted successfully`);
         return result;
@@ -195,17 +225,54 @@ export const grantPermissionsToRole = async (roleName, { permissions, entity }) 
     }
 }
 
-export const revokePermissionsFromRole = async (roleName, permissions) => {
+export const revokePermissionsFromRole = async (roleName, permissions, entity) => {
     try {
         const perms = Array.isArray(permissions) ? permissions.join(', ') : permissions;
-        // Use proper quoting for role name
-        const query = `REVOKE ${perms} FROM "${roleName}";`
+        let query;
+        if (entity) {
+            // Revoke from a specific table
+            query = `REVOKE ${perms} ON TABLE public.${entity} FROM "${roleName}";`;
+        } else {
+            // Revoke from the whole role (all objects)
+            query = `REVOKE ${perms} FROM "${roleName}";`;
+        }
         const result = await client.query(query);
-        console.log(`Permissions ${perms} revoked from role ${roleName}`);
+        console.log(`Permissions ${perms} revoked from role ${roleName}${entity ? ' on table ' + entity : ''}`);
         return result;
     }
     catch (error) {
         console.error("Error revoking permissions from role:", error);
+        throw error;
+    }
+}
+
+export const grantPermissionsToUser = async (userName, { permissions, entity }) => {
+    try {
+        const perms = Array.isArray(permissions) ? permissions.join(', ') : permissions;
+        // Use proper quoting for user name and table name
+        const query = `GRANT ${perms} ON TABLE public.${entity} TO "${userName}";`;
+        console.log('Executing grant query for user:', query);
+        const result = await client.query(query);
+        console.log(`Permissions ${perms} granted to user ${userName} on table ${entity}`);
+        return result;
+    }
+    catch (error) {
+        console.error("Error granting permissions to user:", error);
+        throw error;
+    }
+}
+
+export const revokePermissionsFromUser = async (userName, permissions) => {
+    try {
+        const perms = Array.isArray(permissions) ? permissions.join(', ') : permissions;
+        // Use proper quoting for user name
+        const query = `REVOKE ${perms} FROM "${userName}";`
+        const result = await client.query(query);
+        console.log(`Permissions ${perms} revoked from user ${userName}`);
+        return result;
+    }
+    catch (error) {
+        console.error("Error revoking permissions from user:", error);
         throw error;
     }
 }
