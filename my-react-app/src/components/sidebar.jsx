@@ -16,7 +16,6 @@ const Sidebar = () => {
     { icon: "wrench", label: "Manage Role", path: "/manage_role" },
     { icon: "database", label: "Backup", path: "/backup" },
     { icon: "folder", label: "Recovery", path: "/recovery" },
-    { icon: "settings", label: "Setting", path: "/setting" },
   ]
 
   const toggleSidebar = () => {
