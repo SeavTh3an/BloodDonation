@@ -1,6 +1,45 @@
 import "../styles/dashboardcard.css";
+import { useEffect, useState } from "react";
+import { userApi } from "../api/userApi";
+import { roleApi } from "../api/roleApi";
+import { backupApi } from "../api/backupApi";
 
 const Dashboard = () => {
+  const [userCount, setUserCount] = useState(null);
+  const [roleCount, setRoleCount] = useState(null);
+  const [backupCount, setBackupCount] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      try {
+        const users = await userApi.getAllUsers();
+        setUserCount(Array.isArray(users) ? users.length : 0);
+      } catch {
+        setUserCount(0);
+      }
+      try {
+        const roles = await roleApi.getAllRoles();
+        setRoleCount(Array.isArray(roles) ? roles.length : 0);
+      } catch {
+        setRoleCount(0);
+      }
+      try {
+        const backups = await backupApi.getAllBackups();
+        // backups may be an array or an object with a backups property
+        let count = 0;
+        if (Array.isArray(backups)) count = backups.length;
+        else if (backups && Array.isArray(backups.backups)) count = backups.backups.length;
+        setBackupCount(count);
+      } catch {
+        setBackupCount(0);
+      }
+      setLoading(false);
+    }
+    fetchData();
+  }, []);
+
   return (
     <div className="dashboard-container">
       <div className="metrics-grid">
@@ -13,7 +52,7 @@ const Dashboard = () => {
           </div>
           <div className="metric-content">
             <h3 className="metric-title">User</h3>
-            <p className="metric-value">1000</p>
+            <p className="metric-value">{loading || userCount === null ? '...' : userCount}</p>
           </div>
         </div>
 
@@ -26,7 +65,7 @@ const Dashboard = () => {
           </div>
           <div className="metric-content">
             <h3 className="metric-title">Backup</h3>
-            <p className="metric-value">0</p>
+            <p className="metric-value">{loading || backupCount === null ? '...' : backupCount}</p>
           </div>
         </div>
 
@@ -39,7 +78,7 @@ const Dashboard = () => {
           </div>
           <div className="metric-content">
             <h3 className="metric-title">Role</h3>
-            <p className="metric-value">9</p>
+            <p className="metric-value">{loading || roleCount === null ? '...' : roleCount}</p>
           </div>
         </div>
 
@@ -52,7 +91,7 @@ const Dashboard = () => {
           </div>
           <div className="metric-content">
             <h3 className="metric-title">Recovery</h3>
-            <p className="metric-value">0</p>
+            <p className="metric-value">-</p>
           </div>
         </div>
       </div>

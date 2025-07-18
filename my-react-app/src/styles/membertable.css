@@ -319,7 +319,8 @@
   border: 1px solid #eeeeee;
   border-radius: 4px;
   font-size: 14px;
-  color: #292d32;
+  background-color: white;
+  color: #000000;
 }
 
 .add-role-btn {

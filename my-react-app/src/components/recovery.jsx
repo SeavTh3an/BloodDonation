@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { backupApi } from "../api/backupApi.js"
 import "../styles/recovery.css"
+import React from "react";
 
 const FolderIcon = () => (
   <svg className="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -39,10 +40,10 @@ const ClockIcon = () => (
 
 const RecoveryDashboard = () => {
   const [recoveryData, setRecoveryData] = useState([])
-
   const [isRecoveryRunning, setIsRecoveryRunning] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  const fileInputRef = useState(null)[0] || useState(() => React.createRef())[0];
 
   const getStatusClass = (status) => {
     switch (status) {
@@ -70,72 +71,81 @@ const RecoveryDashboard = () => {
     return `last recovery ${now.toLocaleDateString("en-US", options)}`
   }
 
-  const startRecovery = async () => {
-    if (window.confirm("Are you sure you want to restore the database? This will overwrite current data.")) {
-      setIsRecoveryRunning(true)
-      setError("")
-      setSuccess("")
-
-      // Create new recovery entry
-      const newRecovery = {
-        id: Date.now(),
-        type: "Recovery",
-        lastAction: formatCurrentTime(),
-        status: "Processing",
-        progress: 0,
-        isProcessing: true,
-      }
-
-      setRecoveryData([newRecovery])
-
-      try {
-        // Call backend restore API
-        await backupApi.restoreBackup()
-
-        // Mark as completed
-        setRecoveryData((prev) =>
-          prev.map((item) =>
-            item.id === newRecovery.id
-              ? {
-                  ...item,
-                  status: "Completed",
-                  progress: 100,
-                  isProcessing: false,
-                }
-              : item,
-          ),
-        )
-
-        setSuccess("Database recovery completed successfully!")
-      } catch (error) {
-        console.error('Recovery failed:', error)
-        
-        // Mark as failed
-        setRecoveryData((prev) =>
-          prev.map((item) =>
-            item.id === newRecovery.id
-              ? {
-                  ...item,
-                  status: "Failed",
-                  isProcessing: false,
-                }
-              : item,
-          ),
-        )
-
-        setError("Recovery failed. Please try again.")
-      } finally {
-        setIsRecoveryRunning(false)
-      }
+  // New: handle file selection and upload
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.name.endsWith('.sql')) {
+      setError('Please select a .sql backup file.');
+      return;
     }
-  }
+    setIsRecoveryRunning(true);
+    setError("");
+    setSuccess("");
+    const newRecovery = {
+      id: Date.now(),
+      type: "Recovery",
+      lastAction: formatCurrentTime(),
+      status: "Processing",
+      progress: 0,
+      isProcessing: true,
+    };
+    setRecoveryData([newRecovery]);
+    try {
+      const formData = new FormData();
+      formData.append('backup', file);
+      // Call backend restore API (assume POST /api/restore/upload)
+      const response = await fetch('/api/restore/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) throw new Error('Recovery failed');
+      setRecoveryData((prev) =>
+        prev.map((item) =>
+          item.id === newRecovery.id
+            ? { ...item, status: "Completed", progress: 100, isProcessing: false }
+            : item
+        )
+      );
+      setSuccess("Database recovery completed successfully!");
+    } catch (error) {
+      setRecoveryData((prev) =>
+        prev.map((item) =>
+          item.id === newRecovery.id
+            ? { ...item, status: "Failed", isProcessing: false }
+            : item
+        )
+      );
+      setError("Recovery failed. Please try again.");
+    } finally {
+      setIsRecoveryRunning(false);
+    }
+  };
+
+  // New: trigger file input
+  const handleRecoveryClick = () => {
+    setError("");
+    setSuccess("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = null; // reset
+      fileInputRef.current.click();
+    }
+  };
 
   return (
     <div className="dashboard">
       <div className="header">
-        <button className="recovery-button" onClick={startRecovery} disabled={isRecoveryRunning}>
+        <button className="recovery-button" onClick={handleRecoveryClick} disabled={isRecoveryRunning}>
           {isRecoveryRunning ? "Recovery in Progress..." : "Recovery"}
         </button>
+        {/* Hidden file input */}
+        <input
+          type="file"
+          accept=".sql"
+          style={{ display: 'none' }}
+          ref={fileInputRef}
+          onChange={handleFileChange}
+        />
       </div>
 
       {error && <div className="error-message" style={{ color: 'red', marginBottom: '10px', textAlign: 'center' }}>{error}</div>}

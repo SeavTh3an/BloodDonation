@@ -9,7 +9,6 @@ const App = () => {
     <div className="app">
       <Sidebar />
       <DashboardHeader />
-      <TestConnection />
       <Dashboardcard />
     </div>
   )
