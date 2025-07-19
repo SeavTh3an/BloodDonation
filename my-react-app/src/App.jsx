@@ -6,7 +6,6 @@ import AssignRole from "./page/assign_role"
 import ManageRole from "./page/manage_role"
 import BackupPage from "./page/backup"
 import RecoveryPage from "./page/recovery"
-import SettingPage from "./page/setting"
 import AddUserPage from "./page/adduser"
 // ... and other pages
 
@@ -21,7 +20,6 @@ function App() {
         <Route path="/manage_role" element={<ManageRole />} />
         <Route path="/backup" element={<BackupPage />} />
         <Route path="/recovery" element={<RecoveryPage />} />
-        <Route path="/setting" element={<SettingPage />} />
         <Route path="/adduser" element={<AddUserPage />} />
       </Routes>
     </Router>
