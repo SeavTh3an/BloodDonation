@@ -44,3 +44,11 @@ A web-based blood bank platform built with Ruby on Rails (or adjust framework), 
   ```bash
   npm install axios react react-dom
   npm install --save-dev vite @vitejs/plugin-react eslint eslint-plugin-react
+
+3. Create .env file
+   ```bash
+   DB_HOST=your-host
+   DB_USER=your-username
+   DV_PORT=your-port
+   DB_PASSWORD=your-password
+   DB_NAME=your-db-name
