@@ -35,10 +35,12 @@ A web-based blood bank platform built with Ruby on Rails (or adjust framework), 
    
 2. Additional installation
 - For backend
+  
    ```bash
    npm install express cors pg multer
    
 - For Frontend
+
   ```bash
   npm install axios react react-dom
   npm install --save-dev vite @vitejs/plugin-react eslint eslint-plugin-react
