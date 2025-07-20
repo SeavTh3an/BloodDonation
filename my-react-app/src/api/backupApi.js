@@ -37,5 +37,16 @@ export const backupApi = {
       console.error('Error getting all backups:', error)
       throw error
     }
+  },
+
+  // Get current database info
+  getCurrentDatabaseInfo: async () => {
+    try {
+      const response = await api.get('/database/info')
+      return response.data
+    } catch (error) {
+      console.error('Error getting current database info:', error)
+      throw error
+    }
   }
 } 

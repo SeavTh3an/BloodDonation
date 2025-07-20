@@ -1,5 +1,5 @@
 import express from 'express'
-import { backupDatabaseCon, getBackupInfoCon, getAllBackupsCon } from '../controller/backupController.js'
+import { backupDatabaseCon, getBackupInfoCon, getAllBackupsCon, getCurrentDatabaseInfoCon, downloadBackupFileCon } from '../controller/backupController.js'
 import { restoreDatabaseCon, uploadAndRestoreDatabaseCon } from '../controller/restoreController.js'
 import multer from 'multer'
 
@@ -29,5 +29,7 @@ router.post('/backup', backupDatabaseCon)
 router.get('/backup/all', getAllBackupsCon)
 router.get('/backup/info', getBackupInfoCon) // Default route for getting backup info
 router.get('/backup/:fileName', getBackupInfoCon) // Route with filename parameter
+router.get('/backup/download/:fileName', downloadBackupFileCon) // Route for downloading backup files
+router.get('/database/info', getCurrentDatabaseInfoCon) // Route for getting current database info
 router.post('/restore', restoreDatabaseCon)
 router.post('/restore/upload', upload.single('backup'), uploadAndRestoreDatabaseCon)

@@ -135,3 +135,111 @@ export function getBackupStats() {
     backups: backups
   }
 }
+
+export function getCurrentDatabaseInfo({ host, port, user, password, dbName }) {
+  return new Promise((resolve, reject) => {
+    try {
+      const env = { ...process.env, PGPASSWORD: password }
+      
+      // Query to get database size
+      const sizeQuery = `
+        SELECT 
+          pg_size_pretty(pg_database_size('${dbName}')) as size,
+          pg_database_size('${dbName}') as size_bytes
+      `
+      
+      // Query to get table count
+      const tableQuery = `
+        SELECT COUNT(*) as table_count 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public'
+      `
+      
+      // Query to get last modified date (approximate)
+      const lastModifiedQuery = `
+        SELECT MAX(last_modified) as last_modified
+        FROM (
+          SELECT GREATEST(
+            COALESCE(MAX(last_vacuum), '1970-01-01'),
+            COALESCE(MAX(last_autovacuum), '1970-01-01'),
+            COALESCE(MAX(last_analyze), '1970-01-01'),
+            COALESCE(MAX(last_autoanalyze), '1970-01-01')
+          ) as last_modified
+          FROM pg_stat_user_tables
+        ) as stats
+      `
+
+      const psql = spawn('psql', [
+        `-h`, host,
+        `-p`, port,
+        `-U`, user,
+        `-d`, dbName,
+        `-t`, // Tuples only
+        `-c`, `${sizeQuery}; ${tableQuery}; ${lastModifiedQuery}`
+      ], { env })
+
+      let output = ''
+      let errorOutput = ''
+
+      psql.stdout.on('data', (data) => {
+        output += data.toString()
+      })
+
+      psql.stderr.on('data', (data) => {
+        errorOutput += data.toString()
+      })
+
+      psql.on('close', (code) => {
+        if (code === 0) {
+          try {
+            const lines = output.trim().split('\n').filter(line => line.trim())
+            const sizeLine = lines[0] || ''
+            const tableLine = lines[1] || ''
+            const modifiedLine = lines[2] || ''
+
+            const sizeMatch = sizeLine.match(/(\d+(?:\.\d+)?)\s+(\w+)/)
+            const tableMatch = tableLine.match(/(\d+)/)
+            const modifiedMatch = modifiedLine.match(/(\d{4}-\d{2}-\d{2})/)
+
+            const size = sizeMatch ? `${sizeMatch[1]} ${sizeMatch[2]}` : 'Unknown'
+            const tables = tableMatch ? `${tableMatch[1]} tables` : 'Unknown'
+            const lastModified = modifiedMatch ? new Date(modifiedMatch[1]).toLocaleString() : 'Unknown'
+
+            resolve({
+              size,
+              tables,
+              lastModified,
+              sizeBytes: sizeMatch ? parseInt(sizeMatch[1]) * (sizeMatch[2] === 'MB' ? 1024 * 1024 : 1024) : 0
+            })
+          } catch (parseError) {
+            console.error('Error parsing database info:', parseError)
+            resolve({
+              size: 'Unknown',
+              tables: 'Unknown',
+              lastModified: 'Unknown',
+              sizeBytes: 0
+            })
+          }
+        } else {
+          console.error('psql failed with code:', code, 'Error:', errorOutput)
+          // Return default values if query fails
+          resolve({
+            size: 'Unknown',
+            tables: 'Unknown',
+            lastModified: 'Unknown',
+            sizeBytes: 0
+          })
+        }
+      })
+
+      psql.on('error', (error) => {
+        console.error('Failed to start psql:', error)
+        reject(new Error(`Failed to get database info: ${error.message}`))
+      })
+
+    } catch (error) {
+      console.error('Error in getCurrentDatabaseInfo:', error)
+      reject(new Error(`Failed to get database info: ${error.message}`))
+    }
+  })
+}
